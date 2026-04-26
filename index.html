@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VLM 01 — CLIP & Contrastive Vision-Language Learning</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-card: #0d1117;
+            --bg-code: #161b22;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent: #76B900;
+            --accent-dim: #76B90044;
+            --accent-glow: #76B90033;
+            --border: #21262d;
+            --font-display: 'Space Grotesk', sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+            --font-body: 'Inter', sans-serif;
+            --max-width: 900px;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 17px;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem 1.5rem;
+            text-align: center;
+            position: relative;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .hero > * { position: relative; z-index: 1; }
+        .series-label {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 1rem;
+        }
+        .hero h1 {
+            font-family: var(--font-display);
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.2;
+            margin-bottom: 1rem;
+        }
+        .hero h1 .accent { color: var(--accent); }
+        .hero .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 640px;
+            margin-bottom: 2rem;
+        }
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 2.5rem;
+        }
+        .tag {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            background: var(--accent-dim);
+            white-space: nowrap;
+        }
+        .pipeline {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            margin-bottom: 1rem;
+            max-width: var(--max-width);
+        }
+        .pipeline-step {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            padding: 0.3rem 0.7rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+        .pipeline-arrow { color: var(--accent); font-size: 0.9rem; font-weight: 700; }
+        .slide {
+            min-height: 100vh;
+            max-width: var(--max-width);
+            margin: 0 auto;
+            padding: 4rem 1.5rem;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .slide-number {
+            font-family: var(--font-display);
+            font-size: 5rem;
+            font-weight: 700;
+            color: var(--accent-dim);
+            position: absolute;
+            top: 2rem;
+            right: 1.5rem;
+            line-height: 1;
+            user-select: none;
+        }
+        .slide h2 {
+            font-family: var(--font-display);
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 1.5rem;
+            line-height: 1.25;
+        }
+        .slide h3 {
+            font-family: var(--font-display);
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .slide p { margin-bottom: 1rem; color: var(--text-secondary); }
+        .slide p strong { color: var(--text-primary); }
+        .slide ul, .slide ol { margin-bottom: 1rem; padding-left: 1.5rem; color: var(--text-secondary); }
+        .slide li { margin-bottom: 0.4rem; }
+        .slide li strong { color: var(--text-primary); }
+        .slide code {
+            font-family: var(--font-mono);
+            font-size: 0.88em;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            padding: 0.05rem 0.35rem;
+            border-radius: 3px;
+            color: #c9d1d9;
+        }
+        .code-block {
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin: 1.25rem 0;
+            overflow: hidden;
+        }
+        .code-header {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent);
+            background: rgba(118, 185, 0, 0.08);
+            padding: 0.4rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .code-block pre { margin: 0; padding: 1rem; overflow-x: auto; }
+        .code-block code {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: #c9d1d9;
+            background: transparent;
+            border: none;
+            padding: 0;
+        }
+        .kw { color: #ff7b72; }
+        .fn { color: #d2a8ff; }
+        .str { color: #a5d6ff; }
+        .cm { color: #8b949e; font-style: italic; }
+        .num { color: #79c0ff; }
+        .type { color: #ffa657; }
+        .dir { color: #ff7b72; }
+        .mac { color: #ffa657; }
+        .table-wrap {
+            overflow-x: auto;
+            margin: 1.25rem 0;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th {
+            background: var(--bg-code);
+            color: var(--accent);
+            font-weight: 600;
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-family: var(--font-display);
+            white-space: nowrap;
+        }
+        td {
+            padding: 0.6rem 1rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:nth-child(even) td { background: rgba(13, 17, 23, 0.5); }
+        .diagram-flow {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .diagram-box {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            text-align: center;
+            white-space: nowrap;
+        }
+        .diagram-box.accent { border-color: var(--accent); color: var(--accent); background: rgba(118, 185, 0, 0.08); }
+        .diagram-box.dim { color: var(--text-secondary); border-color: var(--border); }
+        .diagram-arrow { color: var(--accent); font-size: 1.3rem; font-weight: 700; }
+        .diagram-vertical {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .diagram-vertical .diagram-arrow { font-size: 1.1rem; }
+        .hierarchy {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .hierarchy-level { display: flex; align-items: center; gap: 0.75rem; }
+        .hierarchy-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            min-width: 80px;
+            text-align: right;
+        }
+        .hierarchy-items { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+        .hierarchy-item {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        .hierarchy-item.accent { border-color: var(--accent); color: var(--accent); background: rgba(118, 185, 0, 0.08); }
+        .diagram-grid {
+            display: grid;
+            gap: 0.75rem;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .diagram-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+        .diagram-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+        .diagram-panel {
+            padding: 1rem;
+            background: var(--bg-code);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+        .diagram-panel.accent-border { border-left: 3px solid var(--accent); }
+        .diagram-panel h4 {
+            font-family: var(--font-display);
+            font-size: 1rem;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+        .diagram-panel p, .diagram-panel ul { font-size: 0.85rem; }
+        .callout {
+            background: var(--bg-card);
+            border-left: 3px solid var(--accent);
+            border-radius: 0 8px 8px 0;
+            padding: 1rem 1.25rem;
+            margin: 1.25rem 0;
+        }
+        .callout p { margin-bottom: 0; }
+        .callout p + p { margin-top: 0.5rem; }
+        .callout .callout-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.3rem;
+        }
+        .contents-list { list-style: none; padding-left: 0; counter-reset: contents; }
+        .contents-list li {
+            counter-increment: contents;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .contents-list li:last-child { border-bottom: none; }
+        .contents-list li::before {
+            content: counter(contents, decimal-leading-zero);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--accent);
+            min-width: 2rem;
+        }
+        .contents-list a { color: var(--text-primary); text-decoration: none; transition: color 0.2s; }
+        .contents-list a:hover { color: var(--accent); }
+        .footer {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+            max-width: var(--max-width);
+            margin: 0 auto;
+        }
+        .footer a { color: var(--accent); text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+        .canvas-wrap {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1.25rem 0;
+            overflow-x: auto;
+        }
+        .canvas-wrap canvas, .canvas-wrap svg { display: block; margin: 0 auto; max-width: 100%; }
+        .badge {
+            display: inline-block;
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            padding: 0.1rem 0.45rem;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            vertical-align: middle;
+            margin-left: 0.3rem;
+        }
+        .badge.ok    { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+        .badge.warn  { border-color: #ffa657; color: #ffa657; background: rgba(255,166,87,0.08); }
+        .badge.bad   { border-color: #ff7b72; color: #ff7b72; background: rgba(255,123,114,0.08); }
+        @media (max-width: 640px) {
+            .slide { padding: 3rem 1rem; min-height: auto; }
+            .slide-number { font-size: 3rem; top: 1.5rem; right: 1rem; }
+            .slide h2 { font-size: 1.5rem; }
+            .diagram-grid.cols-2, .diagram-grid.cols-3 { grid-template-columns: 1fr; }
+            .pipeline { gap: 0.15rem; }
+            .pipeline-step { font-size: 0.6rem; padding: 0.2rem 0.4rem; }
+            .hero h1 { font-size: 1.8rem; }
+            table { font-size: 0.78rem; }
+        }
+    </style>
+</head>
+<body>
+<header class="hero">
+    <div class="series-label">Vision-Language Models Series &mdash; Presentation 01</div>
+    <h1><span class="accent">CLIP</span> &amp; Contrastive Vision-Language Learning</h1>
+    <p class="subtitle">CLIP, OpenCLIP, EVA-CLIP, SigLIP, InfoNCE loss, contrastive scale curves, zero-shot classification &amp; retrieval, and how CLIP became the backbone of modern generative models.</p>
+
+    <div class="tags">
+        <span class="tag">CLIP</span>
+        <span class="tag">OpenCLIP</span>
+        <span class="tag">EVA-CLIP</span>
+        <span class="tag">SigLIP</span>
+        <span class="tag">InfoNCE</span>
+        <span class="tag">Contrastive Learning</span>
+        <span class="tag">Zero-Shot</span>
+    </div>
+
+    <div class="pipeline">
+        <span class="pipeline-step">Image Encoder</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Text Encoder</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Embed</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">InfoNCE</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Scale</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">Zero-Shot</span>
+    </div>
+</header>
+
+<section class="slide" id="slide-00">
+    <div class="slide-number">00</div>
+    <h2>Topics We&rsquo;ll Cover</h2>
+    <ul class="contents-list">
+        <li><a href="#slide-01">Multimodal Alignment &mdash; Text + Image in One Space</a></li>
+        <li><a href="#slide-02">CLIP Architecture &amp; Training</a></li>
+        <li><a href="#slide-03">Contrastive Loss Math &mdash; InfoNCE</a></li>
+        <li><a href="#slide-04">OpenCLIP, EVA-CLIP, SigLIP &mdash; What Each Fixed</a></li>
+        <li><a href="#slide-05">Sigmoid vs Softmax Loss</a></li>
+        <li><a href="#slide-06">Scale Curves &mdash; Dataset, Model, Batch Size</a></li>
+        <li><a href="#slide-07">Zero-Shot Classification &amp; Retrieval</a></li>
+        <li><a href="#slide-08">As a Building Block (Text-to-Image, VLMs)</a></li>
+        <li><a href="#slide-09">What to Take Away</a></li>
+    </ul>
+</section>
+
+<section class="slide" id="slide-01">
+    <div class="slide-number">01</div>
+    <h2>Multimodal Alignment &mdash; Text + Image in One Space</h2>
+    <p>Before CLIP, vision models were trained on fixed label sets. To add a new category you re-trained the classification head. CLIP (<strong>Contrastive Language-Image Pre-training</strong>, Radford et al., OpenAI 2021) learns a joint embedding space from 400 million noisy image-text pairs scraped from the web. Both modalities collapse to a common unit-normed vector; cosine similarity becomes the universal comparator.</p>
+
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>Classic supervised vision</h4>
+            <p>ResNet-50 trained on ImageNet-1K: 1,000 output logits, fixed. Adding &ldquo;radiograph&rdquo; as a class requires labelled data and full fine-tuning. Zero-shot transfer is essentially impossible.</p>
+            <ul>
+                <li>Label space: finite, curated</li>
+                <li>Transfer: linear probe required</li>
+                <li>Generalisation: closed-vocabulary</li>
+            </ul>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>CLIP contrastive learning</h4>
+            <p>ViT-L/14 and a Transformer text encoder share a 768-d embedding space. Any string is a valid &ldquo;class&rdquo;. Comparison is a dot product. New concepts cost nothing at inference time.</p>
+            <ul>
+                <li>Label space: arbitrary natural language</li>
+                <li>Transfer: prompt engineering, no grad</li>
+                <li>Generalisation: open-vocabulary</li>
+            </ul>
+        </div>
+    </div>
+
+    <p>The key insight is that the web already contains supervisory signal: alt-text, captions, surrounding context. The model does not need human-curated labels &mdash; it just has to learn to assign high similarity to the correct (image, text) pair and low similarity to the 4,095 other texts in a batch of 32,768.</p>
+
+    <div class="callout">
+        <div class="callout-label">The embedding space property</div>
+        <p>Once trained, the space is compositional. <em>&ldquo;a dog wearing a hat&rdquo;</em> lands between the &ldquo;dog&rdquo; region and the &ldquo;hat&rdquo; region without any hat-dog training images. This compositionality is what makes CLIP embeddings so widely reused in downstream systems.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-02">
+    <div class="slide-number">02</div>
+    <h2>CLIP Architecture &amp; Training</h2>
+    <p>CLIP uses two independent encoders that share no weights. After encoding, both outputs are L2-normalised and projected to the same dimensionality. Training maximises the cosine similarity of correct pairs and minimises it for all other pairs within the batch.</p>
+
+    <div class="canvas-wrap">
+        <svg viewBox="0 0 720 280" width="720" height="280" xmlns="http://www.w3.org/2000/svg">
+            <style>
+                .box  { fill: #161b22; stroke: #30363d; }
+                .box.ac { stroke: #76B900; fill: rgba(118,185,0,0.08); }
+                .lbl  { fill: #e6edf3; font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 600; }
+                .sub  { fill: #8b949e; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+                .arr  { stroke: #76B900; stroke-width: 1.5; fill: none; marker-end: url(#mclip); }
+                .ttl  { fill: #76B900; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 12px; }
+            </style>
+            <defs>
+                <marker id="mclip" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#76B900"/>
+                </marker>
+            </defs>
+
+            <rect x="20"  y="60"  width="140" height="50" rx="6" class="box"/>
+            <text x="30"  y="80"  class="lbl">Image</text>
+            <text x="30"  y="97"  class="sub">224&times;224 px</text>
+
+            <rect x="20"  y="170" width="140" height="50" rx="6" class="box"/>
+            <text x="30"  y="190" class="lbl">Text</text>
+            <text x="30"  y="207" class="sub">&ldquo;a photo of a dog&rdquo;</text>
+
+            <rect x="210" y="50"  width="160" height="70" rx="6" class="box ac"/>
+            <text x="220" y="73"  class="lbl">Image Encoder</text>
+            <text x="220" y="89"  class="sub">ViT-B/32, ViT-L/14</text>
+            <text x="220" y="105" class="sub">or ResNet-50/101</text>
+
+            <rect x="210" y="160" width="160" height="70" rx="6" class="box ac"/>
+            <text x="220" y="183" class="lbl">Text Encoder</text>
+            <text x="220" y="199" class="sub">63M Transformer</text>
+            <text x="220" y="215" class="sub">max 77 tokens (BPE)</text>
+
+            <rect x="430" y="75"  width="130" height="40" rx="6" class="box"/>
+            <text x="440" y="93"  class="lbl">Linear Proj</text>
+            <text x="440" y="109" class="sub">512-d or 768-d</text>
+
+            <rect x="430" y="175" width="130" height="40" rx="6" class="box"/>
+            <text x="440" y="193" class="lbl">Linear Proj</text>
+            <text x="440" y="209" class="sub">512-d or 768-d</text>
+
+            <rect x="610" y="115" width="100" height="50" rx="6" class="box ac"/>
+            <text x="620" y="136" class="lbl">Cosine Sim</text>
+            <text x="620" y="153" class="sub">I &middot; T (normalised)</text>
+
+            <path d="M 160 85  L 210 85"  class="arr"/>
+            <path d="M 160 195 L 210 195" class="arr"/>
+            <path d="M 370 95  L 430 95"  class="arr"/>
+            <path d="M 370 195 L 430 195" class="arr"/>
+            <path d="M 560 95  L 610 130" class="arr"/>
+            <path d="M 560 195 L 610 145" class="arr"/>
+
+            <text x="20"  y="258" class="sub">Batch: N pairs &rarr; N&times;N similarity matrix &rarr; InfoNCE on diagonal</text>
+        </svg>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Variant</th><th>Image encoder</th><th>Embed dim</th><th>Params (total)</th><th>WIT-400M zero-shot IN-1K</th></tr></thead>
+            <tbody>
+                <tr><td>CLIP RN50</td><td>ResNet-50</td><td>1024</td><td>102M</td><td>59.6%</td></tr>
+                <tr><td>CLIP ViT-B/32</td><td>ViT-B patch=32</td><td>512</td><td>151M</td><td>63.3%</td></tr>
+                <tr><td>CLIP ViT-B/16</td><td>ViT-B patch=16</td><td>512</td><td>150M</td><td>68.3%</td></tr>
+                <tr><td>CLIP ViT-L/14</td><td>ViT-L patch=14</td><td>768</td><td>428M</td><td>75.3%</td></tr>
+                <tr><td>CLIP ViT-L/14@336</td><td>ViT-L patch=14, 336px</td><td>768</td><td>428M</td><td>76.2%</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Training data: WIT-400M</div>
+        <p>OpenAI's WebImageText (WIT) dataset was 400M image-text pairs collected from public internet sources. It was never released. This opacity drove the OpenCLIP project to re-create CLIP on public datasets (LAION-400M, LAION-2B, DataComp-1B). WIT's composition &mdash; in particular, its balance of creative-commons art vs photographic vs diagram data &mdash; still isn't fully characterised.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-03">
+    <div class="slide-number">03</div>
+    <h2>Contrastive Loss Math &mdash; InfoNCE</h2>
+    <p>The training objective is the <strong>InfoNCE loss</strong> (van den Oord et al., 2018), also called NT-Xent in SimCLR. CLIP applies it symmetrically to both modalities. For a batch of <em>N</em> pairs, the model sees an <em>N &times; N</em> similarity matrix; diagonal entries are the positives.</p>
+
+    <div class="code-block">
+        <div class="code-header">InfoNCE loss (both directions, temperature &tau;)</div>
+<pre><code><span class="cm"># I = image embeddings  [N, d],  L2-normalised</span>
+<span class="cm"># T = text  embeddings  [N, d],  L2-normalised</span>
+<span class="cm"># logit_scale = exp(log_temperature)  (learnable, init ~14 = 1/0.07)</span>
+
+<span class="kw">import</span> torch, torch.nn.functional <span class="kw">as</span> F
+
+logits <span class="kw">=</span> logit_scale <span class="kw">*</span> I <span class="fn">@</span> T.T          <span class="cm"># [N, N]</span>
+labels <span class="kw">=</span> torch.<span class="fn">arange</span>(N, device<span class="kw">=</span>logits.device)
+
+loss_i <span class="kw">=</span> F.<span class="fn">cross_entropy</span>(logits,   labels)  <span class="cm"># image&rarr;text</span>
+loss_t <span class="kw">=</span> F.<span class="fn">cross_entropy</span>(logits.T, labels)  <span class="cm"># text&rarr;image</span>
+loss   <span class="kw">=</span> (loss_i <span class="kw">+</span> loss_t) <span class="kw">/</span> <span class="num">2</span></code></pre>
+    </div>
+
+    <p>The temperature <code>&tau;</code> controls peakiness of the softmax distribution. CLIP initialises <code>log(&tau;) = log(1/0.07) &asymp; 2.66</code> and learns it jointly. A lower <code>&tau;</code> sharpens the distribution and amplifies gradients from hard negatives; too low and the loss saturates on easy pairs and ignores hard ones.</p>
+
+    <h3>Why cross-entropy implements InfoNCE</h3>
+    <p>Cross-entropy over a row of the logit matrix is equivalent to maximising the log-probability of the positive pair relative to all negatives &mdash; which is exactly the InfoNCE bound on mutual information <code>I(I;T)</code>. With batch size <em>N</em>, the bound is at most <code>log(N)</code> bits. Larger batches give a tighter bound and more hard negatives per update.</p>
+
+    <div class="callout">
+        <div class="callout-label">Gradient explosion at small &tau;</div>
+        <p>CLIP clips <code>logit_scale</code> to <code>log(100) &asymp; 4.6</code> during training. Without this, the effective temperature can collapse below 0.01, gradients become enormous, and training destabilises. OpenCLIP and SigLIP both inherit this constraint.</p>
+    </div>
+
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>Batch size matters enormously</h4>
+            <p>CLIP used batch N = 32,768 across 592 V100s. At N = 256 you get only 255 negatives per positive. LAION-5B training used N = 86,016 (48 A100s &times; 1,792 per GPU). More negatives &rarr; harder task &rarr; richer features.</p>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>False negatives in large batches</h4>
+            <p>With N = 32,768 images of generic subjects, many texts describe multiple images. These &ldquo;false negatives&rdquo; contaminate the loss. SigLIP's sigmoid formulation handles this more gracefully by treating each pair independently rather than as a single-correct softmax problem.</p>
+        </div>
+    </div>
+</section>
+
+<section class="slide" id="slide-04">
+    <div class="slide-number">04</div>
+    <h2>OpenCLIP, EVA-CLIP, SigLIP &mdash; What Each Fixed</h2>
+    <p>CLIP's closed training data created a reproducibility gap. Three major follow-ups each targeted a different limitation:</p>
+
+    <div class="diagram-grid cols-3">
+        <div class="diagram-panel accent-border">
+            <h4>OpenCLIP <span class="badge ok">LAION / stability.ai</span></h4>
+            <p><strong>What it fixed:</strong> reproducibility. Open weights, open training code (<code>open_clip</code> library), open data (LAION-400M, LAION-2B, DataComp-1B).</p>
+            <ul>
+                <li>ViT-H/14 on LAION-2B: <strong>78.0%</strong> IN-1K zero-shot</li>
+                <li>ViT-bigG/14 on LAION-2B: <strong>80.1%</strong></li>
+                <li>DataComp-XL ViT-L/14: <strong>79.2%</strong> (better data curation matters more than model size)</li>
+                <li>PyPI: <code>pip install open_clip_torch</code></li>
+            </ul>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>EVA-CLIP <span class="badge ok">BAAI 2023</span></h4>
+            <p><strong>What it fixed:</strong> capacity. Uses masked image modelling pre-training (EVA) to initialise the image encoder before contrastive fine-tuning. This unlocks huge ViTs that otherwise diverge from random init.</p>
+            <ul>
+                <li>EVA-CLIP-18B: 18B param image encoder, <strong>83.0%</strong> IN-1K zero-shot</li>
+                <li>EVA02-CLIP-bigE/14+: <strong>82.0%</strong> with only 5B params</li>
+                <li>MIM pre-training saves ~4&times; data vs random init at scale</li>
+            </ul>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>SigLIP <span class="badge ok">Google 2023</span></h4>
+            <p><strong>What it fixed:</strong> loss formulation. Replaces softmax over the batch with a per-pair <strong>sigmoid</strong> binary cross-entropy. This removes the false-negative problem and decouples batch size from loss validity.</p>
+            <ul>
+                <li>SigLIP-B/16: <strong>76.1%</strong> IN-1K at batch 16k vs CLIP 70.0% at same batch</li>
+                <li>SigLIP-SO400M/14: <strong>83.1%</strong> (PaLI-3 backbone)</li>
+                <li>Trained on WebLI (10B pairs), open weights on HuggingFace</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Model</th><th>Data</th><th>Loss</th><th>Max IN-1K 0-shot</th><th>Open weights</th></tr></thead>
+            <tbody>
+                <tr><td>CLIP ViT-L/14</td><td>WIT-400M (closed)</td><td>InfoNCE softmax</td><td>76.2%</td><td>Yes (weights only)</td></tr>
+                <tr><td>OpenCLIP ViT-bigG/14</td><td>LAION-2B (open)</td><td>InfoNCE softmax</td><td>80.1%</td><td>Yes (weights + code + data)</td></tr>
+                <tr><td>EVA-CLIP-18B</td><td>LAION-400M + CC12M</td><td>InfoNCE softmax</td><td>83.0%</td><td>Yes</td></tr>
+                <tr><td>SigLIP-SO400M</td><td>WebLI-10B (closed)</td><td>Sigmoid BCE</td><td>83.1%</td><td>Yes (weights)</td></tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="slide" id="slide-05">
+    <div class="slide-number">05</div>
+    <h2>Sigmoid vs Softmax Loss</h2>
+    <p>The original CLIP uses <strong>softmax</strong> across the entire batch for each positive, making the problem a single-correct multi-class classification. SigLIP treats each pair in the <em>N &times; N</em> matrix as an independent binary classification using <strong>sigmoid</strong> binary cross-entropy. This has deep consequences.</p>
+
+    <div class="code-block">
+        <div class="code-header">SigLIP sigmoid loss (Zhai et al. 2023, eq. 1)</div>
+<pre><code><span class="cm"># logits: [N, N] = image @ text.T * scale</span>
+<span class="cm"># labels: +1 on diagonal, -1 off-diagonal</span>
+
+<span class="kw">import</span> torch
+
+labels <span class="kw">=</span> <span class="num">2</span> <span class="kw">*</span> torch.<span class="fn">eye</span>(N, device<span class="kw">=</span>logits.device) <span class="kw">- 1</span>   <span class="cm"># {-1, +1}</span>
+
+<span class="cm"># Per-pair sigmoid binary cross-entropy:</span>
+loss <span class="kw">=</span> <span class="kw">-</span>torch.nn.functional.<span class="fn">logsigmoid</span>(labels <span class="kw">*</span> logits).<span class="fn">sum</span>() <span class="kw">/</span> N
+
+<span class="cm"># Equivalently (numerically stable):</span>
+<span class="cm"># loss = F.binary_cross_entropy_with_logits(logits, (labels+1)/2)</span></code></pre>
+    </div>
+
+    <h3>Key differences</h3>
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>Softmax (CLIP / OpenCLIP)</h4>
+            <ul>
+                <li>One positive per row; all others are hard negatives</li>
+                <li>Loss normalises over entire batch &rarr; false negatives dilute signal</li>
+                <li>Large batches required for stable training</li>
+                <li>N&times;N matrix must fit in memory on one device (or use all-gather)</li>
+                <li>Temperature leaks into the gradient magnitude globally</li>
+            </ul>
+        </div>
+        <div class="diagram-panel accent-border">
+            <h4>Sigmoid (SigLIP)</h4>
+            <ul>
+                <li>Each pair is independent: no normalisation across batch</li>
+                <li>False negatives just create noisy positive labels &mdash; less catastrophic</li>
+                <li>Works well at smaller batch sizes (tested down to B=32)</li>
+                <li>All-gather still used for throughput, but not required for correctness</li>
+                <li>Bias initialisation trick: init logit bias to <code>-10</code> to offset the overwhelming fraction of negative pairs</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="callout">
+        <div class="callout-label">Why SigLIP became the preferred VLM backbone</div>
+        <p>PaLI-3, PaLM-E, Gemini, and several open VLMs (PaliGemma, InternVL2) use SigLIP-SO400M as the image encoder because it transfers better to fine-grained tasks like OCR, charts, and dense captioning &mdash; precisely because the sigmoid loss forces richer per-image discrimination rather than relative ranking within a batch.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-06">
+    <div class="slide-number">06</div>
+    <h2>Scale Curves &mdash; Dataset, Model, Batch Size</h2>
+    <p>The DataComp benchmark (Gadre et al., 2023) and a series of OpenCLIP ablations produced the clearest picture yet of what actually drives CLIP zero-shot performance. The answer is mostly <strong>data quality</strong>, then model size, then compute budget &mdash; a different ranking from language-model scaling laws.</p>
+
+    <div class="canvas-wrap">
+        <svg viewBox="0 0 720 240" width="720" height="240" xmlns="http://www.w3.org/2000/svg">
+            <style>
+                .ax  { stroke: #30363d; stroke-width: 1; }
+                .grd { stroke: #21262d; stroke-width: 0.5; stroke-dasharray: 3 4; }
+                .bar { fill: rgba(118,185,0,0.55); stroke: #76B900; stroke-width: 1; }
+                .bar2 { fill: rgba(210,168,255,0.4); stroke: #d2a8ff; stroke-width: 1; }
+                .bar3 { fill: rgba(255,166,87,0.4); stroke: #ffa657; stroke-width: 1; }
+                .albl { fill: #8b949e; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+                .vlbl { fill: #e6edf3; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; }
+                .ttl  { fill: #76B900; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 12px; }
+            </style>
+            <text x="10" y="18" class="ttl">IN-1K zero-shot accuracy: DataComp-1B ViT-L/14 ablations (approximate)</text>
+            <line x1="70" y1="30" x2="70"  y2="200" class="ax"/>
+            <line x1="70" y1="200" x2="700" y2="200" class="ax"/>
+            <line x1="70" y1="50"  x2="700" y2="50"  class="grd"/>
+            <line x1="70" y1="100" x2="700" y2="100" class="grd"/>
+            <line x1="70" y1="150" x2="700" y2="150" class="grd"/>
+            <text x="40" y="204" class="albl">60%</text>
+            <text x="40" y="154" class="albl">70%</text>
+            <text x="40" y="104" class="albl">80%</text>
+            <text x="40" y="54"  class="albl">90%</text>
+
+            <rect x="100" y="59" width="80" height="141" class="bar"/>
+            <text x="104" y="55" class="vlbl">79.2%</text>
+            <text x="104" y="218" class="albl">DataComp-1B</text>
+            <text x="110" y="228" class="albl">ViT-L/14</text>
+
+            <rect x="230" y="76" width="80" height="124" class="bar2"/>
+            <text x="234" y="72" class="vlbl">76.9%</text>
+            <text x="230" y="218" class="albl">LAION-2B</text>
+            <text x="238" y="228" class="albl">ViT-L/14</text>
+
+            <rect x="360" y="68" width="80" height="132" class="bar3"/>
+            <text x="364" y="64" class="vlbl">78.0%</text>
+            <text x="360" y="218" class="albl">LAION-2B</text>
+            <text x="368" y="228" class="albl">ViT-H/14</text>
+
+            <rect x="490" y="40" width="80" height="160" class="bar"/>
+            <text x="494" y="36" class="vlbl">80.1%</text>
+            <text x="490" y="218" class="albl">LAION-2B</text>
+            <text x="494" y="228" class="albl">ViT-bigG/14</text>
+
+            <text x="620" y="120" class="albl" style="fill:#8b949e">&larr; data curation</text>
+            <text x="620" y="134" class="albl" style="fill:#8b949e">beats 2&times; scale</text>
+        </svg>
+    </div>
+
+    <h3>The key takeaways from DataComp</h3>
+    <ul>
+        <li><strong>DataComp-1B vs LAION-2B:</strong> same ViT-L/14 model, half the data, but 2.3 pp higher IN-1K accuracy &mdash; curation via CLIP-score filtering plus image-text alignment scoring outweighs raw scale.</li>
+        <li><strong>Batch size:</strong> OpenCLIP ablations show diminishing returns beyond B = 32,768 for ViT-L. The benefit of larger batches (more hard negatives) plateaus when the model saturates easy pairs.</li>
+        <li><strong>Model size:</strong> ViT-bigG (1.84B image params) improves over ViT-H (632M) by ~2 pp &mdash; significant but expensive. EVA MIM pre-training closes most of the gap at lower cost.</li>
+    </ul>
+
+    <div class="callout">
+        <div class="callout-label">Compute-optimal frontier</div>
+        <p>Unlike Chinchilla (equal tokens &amp; params), CLIP's optimal frontier is harder to characterise because the effective dataset size after curation is not fixed. The DataComp paper recommends: filter aggressively (CLIP-score &gt; 0.3 + English-text heuristics), use ViT-L or larger, batch &ge; 32k, and train for 13B image-text pair-steps. Beyond that, returns diminish.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-07">
+    <div class="slide-number">07</div>
+    <h2>Zero-Shot Classification &amp; Retrieval</h2>
+    <p>CLIP's canonical downstream use is <strong>zero-shot classification</strong>: construct one text prompt per class label, encode all prompts, then rank the image against the text embeddings by cosine similarity. No fine-tuning, no labelled data.</p>
+
+    <div class="code-block">
+        <div class="code-header">Zero-shot ImageNet with open_clip (Python)</div>
+<pre><code><span class="kw">import</span> open_clip, torch
+<span class="kw">from</span> PIL <span class="kw">import</span> Image
+
+model, _, preprocess <span class="kw">=</span> open_clip.<span class="fn">create_model_and_transforms</span>(
+    <span class="str">'ViT-L-14'</span>, pretrained<span class="kw">=</span><span class="str">'datacomp_xl_s13b_b90k'</span>
+)
+tokenizer <span class="kw">=</span> open_clip.<span class="fn">get_tokenizer</span>(<span class="str">'ViT-L-14'</span>)
+
+<span class="cm"># Build class embeddings once (cache for large label sets)</span>
+classnames <span class="kw">=</span> [<span class="str">"a dog"</span>, <span class="str">"a cat"</span>, <span class="str">"a car"</span>]
+templates  <span class="kw">=</span> [<span class="str">"a photo of {}"</span>, <span class="str">"a {} in the wild"</span>]
+texts <span class="kw">=</span> [t.<span class="fn">format</span>(c) <span class="kw">for</span> c <span class="kw">in</span> classnames <span class="kw">for</span> t <span class="kw">in</span> templates]
+with torch.no_grad():
+    txt_feats <span class="kw">=</span> model.<span class="fn">encode_text</span>(tokenizer(texts)).float()
+    txt_feats <span class="kw">/=</span> txt_feats.<span class="fn">norm</span>(dim<span class="kw">=-1</span>, keepdim<span class="kw">=True</span>)
+    <span class="cm"># Average over templates for each class</span>
+    txt_feats <span class="kw">=</span> txt_feats.<span class="fn">view</span>(<span class="fn">len</span>(classnames), <span class="fn">len</span>(templates), <span class="kw">-1</span>).<span class="fn">mean</span>(<span class="num">1</span>)
+    txt_feats <span class="kw">/=</span> txt_feats.<span class="fn">norm</span>(dim<span class="kw">=-1</span>, keepdim<span class="kw">=True</span>)
+
+img <span class="kw">=</span> preprocess(<span class="type">Image</span>.<span class="fn">open</span>(<span class="str">"photo.jpg"</span>)).<span class="fn">unsqueeze</span>(<span class="num">0</span>)
+with torch.no_grad():
+    img_feat <span class="kw">=</span> model.<span class="fn">encode_image</span>(img).float()
+    img_feat <span class="kw">/=</span> img_feat.<span class="fn">norm</span>(dim<span class="kw">=-1</span>, keepdim<span class="kw">=True</span>)
+
+probs <span class="kw">=</span> (img_feat <span class="fn">@</span> txt_feats.T).<span class="fn">softmax</span>(dim<span class="kw">=-1</span>)
+pred  <span class="kw">=</span> classnames[probs.<span class="fn">argmax</span>()]</code></pre>
+    </div>
+
+    <h3>Prompt engineering matters</h3>
+    <p>OpenAI found that ensembling 80 hand-crafted templates (<em>&ldquo;a photo of a {}&rdquo;</em>, <em>&ldquo;a blurry photo of the {}&rdquo;</em>, &hellip;) improved IN-1K from 71.3% to 76.2% for ViT-L/14. The averaged embedding is more robust than any single prompt. This gave rise to the field of <strong>CLIP prompt tuning</strong> (CoOp, CoCoOp, CLIP-Adapter) which learns the prompt prefix in continuous embedding space rather than by hand.</p>
+
+    <div class="callout">
+        <div class="callout-label">Cross-modal retrieval</div>
+        <p>The same embedding space enables <em>text &rarr; image</em> and <em>image &rarr; text</em> retrieval. On MS-COCO Recall@1: CLIP ViT-L/14 achieves 58.4% image&rarr;text, 37.8% text&rarr;image. SigLIP-SO400M pushes these to ~70% / ~50%. This is the backbone of every DALL-E 2 / Stable Diffusion retrieval augmentation pipeline.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-08">
+    <div class="slide-number">08</div>
+    <h2>As a Building Block (Text-to-Image, VLMs)</h2>
+    <p>CLIP is rarely deployed standalone. Its embedding space and image encoder are load-bearing components in three major downstream architectures:</p>
+
+    <div class="hierarchy">
+        <div class="hierarchy-level">
+            <div class="hierarchy-label">DALL-E 2</div>
+            <div class="hierarchy-items">
+                <span class="hierarchy-item accent">CLIP image embed</span>
+                <span class="hierarchy-item">&rarr; prior (diffusion)</span>
+                <span class="hierarchy-item">&rarr; CLIP image embed &rarr; decoder (unCLIP)</span>
+            </div>
+        </div>
+        <div class="hierarchy-level">
+            <div class="hierarchy-label">Stable Diff. 1.x</div>
+            <div class="hierarchy-items">
+                <span class="hierarchy-item accent">CLIP ViT-L/14 text encoder</span>
+                <span class="hierarchy-item">&rarr; cross-attention conditioning in UNet</span>
+                <span class="hierarchy-item">(image encoder unused)</span>
+            </div>
+        </div>
+        <div class="hierarchy-level">
+            <div class="hierarchy-label">SD 2.x / XL</div>
+            <div class="hierarchy-items">
+                <span class="hierarchy-item accent">OpenCLIP ViT-H text encoder</span>
+                <span class="hierarchy-item">+ second CLIP-L encoder (SDXL)</span>
+                <span class="hierarchy-item">&rarr; concatenated 2048-d conditioning</span>
+            </div>
+        </div>
+        <div class="hierarchy-level">
+            <div class="hierarchy-label">LLaVA / VLMs</div>
+            <div class="hierarchy-items">
+                <span class="hierarchy-item accent">CLIP ViT-L/14 image encoder</span>
+                <span class="hierarchy-item">&rarr; MLP projection</span>
+                <span class="hierarchy-item">&rarr; prepended to LLM token sequence</span>
+            </div>
+        </div>
+    </div>
+
+    <h3>The frozen-vs-tuned decision</h3>
+    <p>Most text-to-image systems keep the CLIP text encoder <strong>frozen</strong> during diffusion training, treating it as a fixed feature extractor. LLaVA-1.5 keeps the CLIP image encoder frozen too (only the MLP projection and LLM are trained). This is why a fine-tuned diffusion model that breaks the CLIP conditioning &mdash; e.g. by further training the text encoder on NSFW data &mdash; loses compositionality on common prompts.</p>
+
+    <div class="callout">
+        <div class="callout-label">CLIP score as an evaluation metric</div>
+        <p><strong>CLIP score</strong> (Hessel et al., 2021) measures image-text alignment by computing the cosine similarity of a generated image and its prompt using a fixed CLIP model (usually ViT-L/14). It has become the standard automated metric for text-to-image models: DALL-E 3 reports 0.754 CLIP-score-H on COCO-30K, vs Stable Diffusion XL at 0.743. The metric is imperfect &mdash; it rewards style over semantic precision &mdash; but it is reproducible and correlates with human preference at scale.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-09">
+    <div class="slide-number">09</div>
+    <h2>What to Take Away</h2>
+    <ul>
+        <li><strong>CLIP collapses two modalities into one cosine-comparable space</strong> using noisy web-scale image-text pairs and InfoNCE loss. No manual labels required.</li>
+        <li><strong>InfoNCE is symmetric cross-entropy on an N&times;N batch similarity matrix.</strong> Temperature is learnable but must be clipped to prevent gradient explosion.</li>
+        <li><strong>OpenCLIP</strong> gave us reproducibility (open data + code + weights). <strong>EVA-CLIP</strong> unlocked huge ViTs via MIM warm-start. <strong>SigLIP</strong> replaced the batch-softmax with per-pair sigmoid BCE, removing the false-negative problem and enabling smaller batch training.</li>
+        <li><strong>SigLIP-SO400M/14</strong> is the current best-practice image encoder for downstream VLMs: 83.1% IN-1K, strong OCR &amp; chart transfer, open weights on HuggingFace.</li>
+        <li><strong>Data quality beats data quantity.</strong> DataComp-1B (1B curated pairs) outperforms LAION-2B (2B raw pairs) with the same model and compute.</li>
+        <li><strong>CLIP is plumbing.</strong> It powers DALL-E 2 priors, Stable Diffusion conditioning, LLaVA projection layers, retrieval augmentation, and CLIP-score evaluation metrics.</li>
+    </ul>
+
+    <div class="callout">
+        <div class="callout-label">Where to next</div>
+        <p>Deck 02 drills into the image encoder side: ViT, DeiT, Swin, DINOv2, and SAM. Once you understand those architectures the CLIP image encoder column becomes much clearer, and you&rsquo;ll be able to reason about why patch size and resolution are the primary knobs when adapting a CLIP model to a new task.</p>
+    </div>
+</section>
+
+<footer class="footer">
+    <p>Part of the <a href="https://github.com/BrendanJamesLynskey/LLM_Hub_Vision_Language">Vision-Language Models Series</a></p>
+    <p style="margin-top: 0.5rem; font-size: 0.8rem;"><a href="https://github.com/BrendanJamesLynskey/LLM_Hub_Vision_Language">Back to Series Index</a></p>
+</footer>
+<script>
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = document.querySelector(this.getAttribute('href'));
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+    });
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.slide').forEach(slide => {
+        slide.style.opacity = '0';
+        slide.style.transform = 'translateY(30px)';
+        slide.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+        observer.observe(slide);
+    });
+</script>
+</body>
+</html>

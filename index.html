@@ -6,7 +6,7 @@
     <title>VLM 01 — CLIP & Contrastive Vision-Language Learning</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Manrope:wght@300;400;500;600;700&family=Source+Code+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,700&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-primary: #0f2027;
@@ -18,9 +18,9 @@
             --accent-dim: #83c39544;
             --accent-glow: #83c39533;
             --border: #23404a;
-            --font-display: 'Space Grotesk', sans-serif;
-            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-            --font-body: 'Inter', sans-serif;
+            --font-display: 'Sora', sans-serif;
+            --font-mono: 'Source Code Pro', 'Source Code Pro', monospace;
+            --font-body: 'Manrope', sans-serif;
             --max-width: 900px;
         }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -489,10 +489,10 @@
             <style>
                 .box  { fill: #182f38; stroke: #2f4d57; }
                 .box.ac { stroke: #83c395; fill: rgba(131,195,149,0.08); }
-                .lbl  { fill: #ede7dd; font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 600; }
-                .sub  { fill: #8ca5a9; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+                .lbl  { fill: #ede7dd; font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 600; }
+                .sub  { fill: #8ca5a9; font-family: 'Source Code Pro', monospace; font-size: 10px; }
                 .arr  { stroke: #83c395; stroke-width: 1.5; fill: none; marker-end: url(#mclip); }
-                .ttl  { fill: #83c395; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 12px; }
+                .ttl  { fill: #83c395; font-family: 'Sora', sans-serif; font-weight: 600; font-size: 12px; }
             </style>
             <defs>
                 <marker id="mclip" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -716,9 +716,9 @@ loss <span class="kw">=</span> <span class="kw">-</span>torch.nn.functional.<spa
                 .bar { fill: rgba(131,195,149,0.55); stroke: #83c395; stroke-width: 1; }
                 .bar2 { fill: rgba(212,192,234,0.4); stroke: #d4c0ea; stroke-width: 1; }
                 .bar3 { fill: rgba(234,196,139,0.4); stroke: #eac48b; stroke-width: 1; }
-                .albl { fill: #8ca5a9; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
-                .vlbl { fill: #ede7dd; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; }
-                .ttl  { fill: #83c395; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 12px; }
+                .albl { fill: #8ca5a9; font-family: 'Source Code Pro', monospace; font-size: 10px; }
+                .vlbl { fill: #ede7dd; font-family: 'Source Code Pro', monospace; font-size: 10px; font-weight: 600; }
+                .ttl  { fill: #83c395; font-family: 'Sora', sans-serif; font-weight: 600; font-size: 12px; }
             </style>
             <text x="10" y="18" class="ttl">IN-1K zero-shot accuracy: DataComp-1B ViT-L/14 ablations (approximate)</text>
             <line x1="70" y1="30" x2="70"  y2="200" class="ax"/>
